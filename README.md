@@ -3,7 +3,7 @@
 `modal-2D-client` 是 `modal-2D` 的 **Reference Sidecar**：把远端 Modal execution 映射成本地可恢复 Job，并负责验证/缓存 Provider Artifact。它没有业务 UI，也不拥有 Asset、World 或全局 Provider routing；`modal-gen-client` 如存在，只把它当作安全 transport 下游。
 
 ```text
-本地 UI / Connector（未来 modal-gen-client）
+AgentScape / optional modal-gen-client
                 │
                 ▼
         modal-2D-client Agent
@@ -102,7 +102,7 @@ Agent 自带一个浏览器操作台，把上述每个端点暴露成一个可�
 
 ### 界面约束
 
-- 纯静态资源（`modal_2d_client/ui/`），无构建步骤、无前端依赖，随包分发。
+- 纯静态资源（`modal_2d_client/static/`），无构建步骤、无前端依赖，随包分发。
 - 视觉语言对齐 `modal-3D/site`：Catppuccin Frappé 配色 + 编辑式排版（eyebrow + 大标题 + 指标卡片）。信息架构仍是任务导向的 5 步流程，装饰只服务于层级。
 - 若配置了 `MODAL_2D_AGENT_TOKEN`，操作台会提示输入会话令牌；它只存在 `sessionStorage`，不回传后端。UI 静态资源放行免鉴权（浏览器导航无法携带自定义头），其发出的 XHR 仍受保护。
 - 不引入 `/docs`、`/redoc`；端点清单由前端的 `ENDPOINTS` 常量维护，与 `app.py` 路由一一对应。新增路由时需同步该常量。
@@ -140,7 +140,7 @@ modal-2D
   model / GPU / remote artifact
 ```
 
-`modal-gen-client` 不吸收本仓的 Provider-specific Job/Artifact implementation；它只通过本地 API 做安全 transport。这样本仓可以继续脱离 AgentScape 独立 smoke 和恢复测试。
+`modal-gen-client` 不吸收本仓的 Provider-specific Job/Artifact implementation；它只通过本地 API 做安全 transport。这样本 package 可以继续脱离 AgentScape 独立 smoke 和恢复测试。
 
 
 ## Candidate Batch
