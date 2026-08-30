@@ -5,8 +5,6 @@ import re
 from typing import Any
 
 from .constants import (
-    APP_NAME,
-    ARTIFACT_FUNCTION,
     ARTIFACT_MIME,
     ARTIFACT_ROLE,
     ARTIFACT_VOLUME,
@@ -40,8 +38,7 @@ def validate_capabilities(value: Any) -> dict[str, object]:
 
     generation = _mapping(doc.get("generation"), "generation")
     required_generation = {
-        "control_app": APP_NAME,
-        "artifact_function": ARTIFACT_FUNCTION,
+        "entrypoint": "direct_class_method",
         "job_transport": JOB_TRANSPORT,
     }
     if any(generation.get(key) != item for key, item in required_generation.items()):
@@ -174,7 +171,9 @@ def validate_artifact(value: Any) -> dict[str, object]:
     if producer is not None and producer != {"provider": "modal-2d", "operation": OPERATION}:
         raise ContractError("artifact.producer is incompatible")
     remote_path = artifact.get("remote_path")
-    if remote_path is not None and remote_path != f"generated/{artifact_id}.png":
+    expected_remote_path = f"sources/sha256/{digest[:2]}/{digest}"
+    legacy_remote_path = f"generated/{artifact_id}.png"
+    if remote_path is not None and remote_path not in {expected_remote_path, legacy_remote_path}:
         raise ContractError("artifact.remote_path is incompatible")
     if artifact.get("width") != 1024 or artifact.get("height") != 1024:
         raise ContractError("artifact dimensions are incompatible")

@@ -7,33 +7,13 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import modal
-from modal.exception import (
-    AuthError,
-    InternalError,
-    NotFoundError,
-    PermissionDeniedError,
-    ServiceError,
-)
-from modal.exception import ConnectionError as ModalConnectionError
-from modal.exception import TimeoutError as ModalTimeoutError
 
-from .constants import APP_NAME, ARTIFACT_FUNCTION, ARTIFACT_VOLUME
+from .constants import ARTIFACT_VOLUME, LEGACY_ARTIFACT_VOLUME
 from .contracts import ContractError, validate_artifact
 from .modal_session import client
 from .storage import data_dir
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-_VOLUME_FALLBACK = (
-    AuthError,
-    PermissionDeniedError,
-    ModalConnectionError,
-    ModalTimeoutError,
-    InternalError,
-    ServiceError,
-    NotFoundError,
-    FileNotFoundError,
-    OSError,
-)
 
 
 def cache_path(sha256: str) -> Path:
@@ -52,27 +32,20 @@ def fetch(descriptor: dict[str, object]) -> Path:
         return destination
 
     remote_path = artifact.get("remote_path")
-    if isinstance(remote_path, str):
-        try:
-            return _cache_chunks(_volume_chunks(remote_path), destination, artifact)
-        except _VOLUME_FALLBACK:
-            pass
-
-    fn = modal.Function.from_name(APP_NAME, ARTIFACT_FUNCTION, client=client())
-    data = fn.remote(str(artifact["id"]))
-    if not isinstance(data, bytes):
-        raise ContractError("artifact function must return bytes")
-    return _cache_chunks((data,), destination, artifact)
+    if not isinstance(remote_path, str):
+        raise ContractError("artifact remote_path is required for direct Volume transport")
+    return _cache_chunks(_volume_chunks(remote_path), destination, artifact)
 
 
 def _volume_chunks(remote_path: str) -> Iterable[bytes]:
-    volume = modal.Volume.from_name(ARTIFACT_VOLUME, client=client())
+    volume_name = (
+        LEGACY_ARTIFACT_VOLUME if remote_path.startswith("generated/") else ARTIFACT_VOLUME
+    )
+    volume = modal.Volume.from_name(volume_name, client=client())
     return volume.read_file(remote_path)
 
 
-def _cache_chunks(
-    chunks: Iterable[bytes], destination: Path, artifact: dict[str, object]
-) -> Path:
+def _cache_chunks(chunks: Iterable[bytes], destination: Path, artifact: dict[str, object]) -> Path:
     destination.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary_name = tempfile.mkstemp(
         prefix=".artifact-", suffix=".part", dir=destination.parent
@@ -109,7 +82,6 @@ def _validate_stream_result(
         raise ContractError("artifact is not a PNG")
     if digest != artifact["sha256"]:
         raise ContractError("artifact SHA-256 mismatch")
-
 
 
 def _validate_file(path: Path, artifact: dict[str, object]) -> None:

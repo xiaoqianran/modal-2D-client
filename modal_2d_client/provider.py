@@ -4,6 +4,8 @@ import hashlib
 from collections.abc import Iterator
 from pathlib import Path
 
+from modal_2d.deployment import deployment_manifest as runtime_deployment_manifest
+
 from . import capabilities, modal_session
 from .constants import (
     ARTIFACT_ROLE,
@@ -15,7 +17,6 @@ from .constants import (
 )
 from .contracts import ContractError
 from .jobs import JobService
-from .modal_session import NotConnectedError
 
 
 class ProviderFault(RuntimeError):
@@ -40,10 +41,13 @@ class Modal2DProvider:
     def descriptor(self) -> dict[str, object]:
         try:
             document = capabilities.document(refresh_remote=False)
-            model_ids = [str(item["id"]) for item in document["models"]]  # type: ignore[index]
-        except (NotConnectedError, ContractError):
+        except ContractError:
             return self.unavailable_descriptor()
-        return _descriptor(model_ids=model_ids, status="available", health="healthy")
+        model_ids = [str(item["id"]) for item in document["models"]]  # type: ignore[index]
+        connected = modal_session.connected() or self._jobs is not None
+        status = "available" if connected else "disabled"
+        health = "healthy" if connected else "unavailable"
+        return _descriptor(model_ids=model_ids, status=status, health=health)
 
     def unavailable_descriptor(self) -> dict[str, object]:
         return _descriptor(model_ids=[], status="disabled", health="unavailable")
@@ -55,9 +59,16 @@ class Modal2DProvider:
         modal_session.connect(token_id, token_secret)
         return self.connection_status()
 
+    async def connect_async(self, token_id: str, token_secret: str) -> dict[str, object]:
+        await modal_session.connect_async(token_id, token_secret)
+        return self.connection_status()
+
     def disconnect(self) -> dict[str, object]:
         modal_session.disconnect()
         return self.connection_status()
+
+    def deployment_manifest(self) -> dict[str, object]:
+        return runtime_deployment_manifest()
 
     def submit(
         self,

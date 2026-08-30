@@ -11,10 +11,9 @@ def capability_doc():
         "kind": "image.generate",
         "operation": "modal-2d.image.text_to_image.v1",
         "generation": {
-            "control_app": "modal-2d",
+            "entrypoint": "direct_class_method",
             "batch_max_size": 8,
-            "artifact_function": "read_artifact",
-            "artifact_volume": "modal-2d-artifacts",
+            "artifact_volume": "modal-gen-artifacts",
             "artifact_path_field": "remote_path",
             "job_transport": "modal.FunctionCall",
         },
@@ -64,5 +63,5 @@ def png_artifact():
         "sha256": sha256,
         "width": 1024,
         "height": 1024,
-        "remote_path": "generated/art_abc.png",
+        "remote_path": f"sources/sha256/{sha256[:2]}/{sha256}",
     }
